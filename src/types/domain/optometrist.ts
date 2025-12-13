@@ -21,6 +21,8 @@ export interface ProfileData {
     badgeStatus?: string;
     ratings?: number[];
     reviews?: [];
+    consultationFeeMin?: number;
+    consultationFeeMax?: number;
     createdAt: string;
     updatedAt: string;
     __v: number;

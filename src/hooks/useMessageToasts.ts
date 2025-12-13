@@ -8,6 +8,7 @@ import { Message } from '@/api/messaging/messages/messages';
 import { MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { getConversations } from '@/api/messaging';
+import type { Conversation } from '@/types/api/messaging';
 
 /**
  * Hook to show toast notifications when new messages are received
@@ -45,7 +46,7 @@ export const useMessageToasts = () => {
       try {
         console.log('[Toast] 🔄 Fetching and joining conversations...');
         const data = await getConversations();
-        const conversationIds = data.conversations.map((conv: any) => conv._id);
+        const conversationIds = data.conversations.map((conv: Conversation) => conv._id);
 
         if (conversationIds.length === 0) {
           console.log('[Toast] ℹ️ No conversations found');
@@ -96,7 +97,8 @@ export const useMessageToasts = () => {
       }
 
       // Get conversation ID
-      const messageConversationId = (message as any).conversationId || (message as any).conversation?._id;
+      const messageWithConversation = message as Message & { conversationId?: string; conversation?: { _id?: string } };
+      const messageConversationId = messageWithConversation.conversationId || messageWithConversation.conversation?._id;
 
       // If we receive a message from a conversation we're not in, join it immediately
       if (messageConversationId && !conversationsJoinedRef.current.has(messageConversationId)) {
@@ -107,10 +109,12 @@ export const useMessageToasts = () => {
 
       // Get sender ID
       let senderId = '';
-      if (typeof message.sender?.userId === 'string') {
-        senderId = message.sender.userId;
-      } else if (message.sender?.userId) {
-        senderId = (message.sender.userId as any)?._id || (message.sender.userId as any)?.id || '';
+      const senderUserId = message.sender?.userId;
+      if (typeof senderUserId === 'string') {
+        senderId = senderUserId;
+      } else if (senderUserId && typeof senderUserId === 'object') {
+        const userIdObj = senderUserId as { _id?: string; id?: string };
+        senderId = userIdObj._id || userIdObj.id || '';
       }
 
       // Skip if message is from current user
@@ -125,8 +129,9 @@ export const useMessageToasts = () => {
 
       // Get sender name
       let senderName = 'Someone';
-      if (typeof message.sender?.userId === 'object' && message.sender?.userId) {
-        const sender = message.sender.userId as any;
+      const senderUserIdForName = message.sender?.userId;
+      if (typeof senderUserIdForName === 'object' && senderUserIdForName !== null) {
+        const sender = senderUserIdForName as { fullName?: string; username?: string; name?: string };
         senderName = sender.fullName || sender.username || sender.name || 'Someone';
       }
 
@@ -172,6 +177,7 @@ export const useMessageToasts = () => {
         },
         cancel: {
           label: 'Dismiss',
+          onClick: () => { },
         },
       });
     };

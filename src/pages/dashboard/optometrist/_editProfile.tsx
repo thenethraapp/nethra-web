@@ -16,6 +16,8 @@ interface OptometristProfileData {
   location: string;
   expertise: string[];
   yearsOfExperience: number;
+  consultationFeeMin?: number;
+  consultationFeeMax?: number;
 }
 
 interface ProfileData {
@@ -37,6 +39,8 @@ interface ProfileData {
     badgeStatus?: string;
     ratings?: number[];
     reviews?: [];
+    consultationFeeMin?: number;
+    consultationFeeMax?: number;
   } | null;
 }
 
@@ -57,7 +61,9 @@ export default function OptometristProfile() {
     about: '',
     location: '',
     expertise: [],
-    yearsOfExperience: 0
+    yearsOfExperience: 0,
+    consultationFeeMin: undefined,
+    consultationFeeMax: undefined
   });
 
   const nigerianStates = [
@@ -119,6 +125,8 @@ export default function OptometristProfile() {
           location: '',
           expertise: [],
           yearsOfExperience: 0,
+          consultationFeeMin: undefined,
+          consultationFeeMax: undefined
         });
       }
     } catch (error) {
@@ -135,7 +143,9 @@ export default function OptometristProfile() {
       about: profileData?.profile?.about || '',
       location: profileData?.profile?.location || '',
       expertise: [...(profileData?.profile?.expertise || [])],
-      yearsOfExperience: profileData?.profile?.yearsOfExperience || 0
+      yearsOfExperience: profileData?.profile?.yearsOfExperience || 0,
+      consultationFeeMin: profileData?.profile?.consultationFeeMin || undefined,
+      consultationFeeMax: profileData?.profile?.consultationFeeMax || undefined
     });
   };
 
@@ -155,6 +165,26 @@ export default function OptometristProfile() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Validate consultation fee range
+      if (editData.consultationFeeMin !== undefined) {
+        if (editData.consultationFeeMin < 3000) {
+          alert('Minimum consultation fee must be at least ₦3,000');
+          return;
+        }
+      }
+      if (editData.consultationFeeMax !== undefined) {
+        if (editData.consultationFeeMax < 3000) {
+          alert('Maximum consultation fee must be at least ₦3,000');
+          return;
+        }
+      }
+      if (editData.consultationFeeMin && editData.consultationFeeMax) {
+        if (editData.consultationFeeMax < editData.consultationFeeMin) {
+          alert('Maximum fee must be greater than or equal to minimum fee');
+          return;
+        }
+      }
+
       // Only include photo in payload if it's been changed (base64) or is a URL
       const payload: OptometristProfileData = {
         about: editData.about,
@@ -162,6 +192,14 @@ export default function OptometristProfile() {
         yearsOfExperience: editData.yearsOfExperience,
         expertise: editData.expertise
       };
+
+      // Add consultation fee fields if provided
+      if (editData.consultationFeeMin !== undefined) {
+        payload.consultationFeeMin = editData.consultationFeeMin;
+      }
+      if (editData.consultationFeeMax !== undefined) {
+        payload.consultationFeeMax = editData.consultationFeeMax;
+      }
 
       if (editData.expertise.length > 0) {
         payload.expertise = editData.expertise;
@@ -516,6 +554,144 @@ export default function OptometristProfile() {
                 </>
               )}
             </div>
+          </div>
+
+          {/* Consultation Fee */}
+          <div>
+            <p className="font-medium mb-2">Consultation Fee (Naira)</p>
+            {isEditing ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Minimum Fee</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₦</span>
+                      <input
+                        type="text"
+                        value={editData.consultationFeeMin !== undefined ? editData.consultationFeeMin.toString() : ''}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+
+                          // Allow empty input
+                          if (inputValue === '') {
+                            setEditData(prev => ({ ...prev, consultationFeeMin: undefined }));
+                            return;
+                          }
+
+                          // Only allow numeric characters
+                          const numericValue = inputValue.replace(/[^0-9]/g, '');
+
+                          if (numericValue === '') {
+                            setEditData(prev => ({ ...prev, consultationFeeMin: undefined }));
+                            return;
+                          }
+
+                          const value = parseInt(numericValue);
+
+                          // Validate range
+                          if (!isNaN(value) && value >= 3000 && value <= 10000000) {
+                            setEditData(prev => ({
+                              ...prev,
+                              consultationFeeMin: value
+                            }));
+                          } else if (value < 3000) {
+                            // Allow typing numbers less than 3000 (user might be typing)
+                            setEditData(prev => ({
+                              ...prev,
+                              consultationFeeMin: value
+                            }));
+                          }
+                        }}
+                        onBlur={() => {
+                          // On blur, enforce minimum of 3000
+                          const value = editData.consultationFeeMin;
+                          if (value !== undefined && value < 3000) {
+                            setEditData(prev => ({
+                              ...prev,
+                              consultationFeeMin: 3000
+                            }));
+                          }
+                        }}
+                        placeholder="3000"
+                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-primary-cyan"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Min: ₦3,000</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Maximum Fee</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₦</span>
+                      <input
+                        type="text"
+                        value={editData.consultationFeeMax !== undefined ? editData.consultationFeeMax.toString() : ''}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+
+                          // Allow empty input
+                          if (inputValue === '') {
+                            setEditData(prev => ({ ...prev, consultationFeeMax: undefined }));
+                            return;
+                          }
+
+                          // Only allow numeric characters
+                          const numericValue = inputValue.replace(/[^0-9]/g, '');
+
+                          if (numericValue === '') {
+                            setEditData(prev => ({ ...prev, consultationFeeMax: undefined }));
+                            return;
+                          }
+
+                          const value = parseInt(numericValue);
+                          const minValue = editData.consultationFeeMin || 3000;
+
+                          // Validate range
+                          if (!isNaN(value) && value >= minValue && value <= 10000000) {
+                            setEditData(prev => ({
+                              ...prev,
+                              consultationFeeMax: value
+                            }));
+                          } else if (value < minValue) {
+                            // Allow typing numbers less than min (user might be typing)
+                            setEditData(prev => ({
+                              ...prev,
+                              consultationFeeMax: value
+                            }));
+                          }
+                        }}
+                        onBlur={() => {
+                          // On blur, enforce minimum of min value or 3000
+                          const value = editData.consultationFeeMax;
+                          const minValue = editData.consultationFeeMin || 3000;
+                          if (value !== undefined && value < minValue) {
+                            setEditData(prev => ({
+                              ...prev,
+                              consultationFeeMax: minValue
+                            }));
+                          }
+                        }}
+                        placeholder="100000"
+                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-primary-cyan"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Must be ≥ Min</p>
+                  </div>
+                </div>
+                {editData.consultationFeeMin && editData.consultationFeeMax && editData.consultationFeeMax < editData.consultationFeeMin && (
+                  <p className="text-xs text-red-500">Maximum must be greater than or equal to minimum</p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-md p-3 shadow-inner">
+                {profileData?.profile?.consultationFeeMin && profileData?.profile?.consultationFeeMax ? (
+                  <span className="text-gray-800 font-semibold">
+                    ₦{profileData.profile.consultationFeeMin.toLocaleString()} - ₦{profileData.profile.consultationFeeMax.toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="text-gray-500 text-sm">Not set</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Ratings */}

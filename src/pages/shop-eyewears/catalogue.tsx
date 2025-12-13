@@ -1,19 +1,70 @@
-import { useState } from "react";
-import { SearchIcon, FilterIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { SearchIcon } from "lucide-react";
 import Image from "next/image";
-import { EyewearsData } from "../../utils/data";
+import Link from "next/link";
+import { getCatalogue, type CatalogueItem } from "@/api/shop/getCatalogue";
 
 const EyewearCatalogue = () => {
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [products, setProducts] = useState<CatalogueItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const categories = ["All", ...new Set(EyewearsData.map(item => item.brand))];
+    useEffect(() => {
+        loadProducts();
+    }, []);
 
-    const filteredEyewear = EyewearsData.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = item.brand === selectedCategory || selectedCategory === "All";
-        return matchesCategory && matchesSearch;
+    const loadProducts = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await getCatalogue({ status: 'active', limit: 1000 });
+
+            if (response.success && Array.isArray(response.data)) {
+                setProducts(response.data);
+            } else {
+                throw new Error('Failed to load products');
+            }
+        } catch (err) {
+            console.error('Error loading products:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load products');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredProducts = products.filter(item => {
+        const matchesSearch =
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesSearch;
     });
+
+    if (loading) {
+        return (
+            <section className="max-width mx-auto px-6 py-12">
+                <div className="flex items-center justify-center min-h-[400px]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-cyan"></div>
+                </div>
+            </section>
+        );
+    }
+
+    if (error) {
+        return (
+            <section className="max-width mx-auto px-6 py-12">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-center">
+                    <p>{error}</p>
+                    <button
+                        onClick={loadProducts}
+                        className="mt-2 text-sm underline hover:no-underline"
+                    >
+                        Try again
+                    </button>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <section className="max-width mx-auto px-6">
@@ -22,59 +73,56 @@ const EyewearCatalogue = () => {
                     <SearchIcon size={18} color="#aaaaaa" />
                     <input
                         type="search"
-                        placeholder="Search for any brand"
+                        placeholder="Search for any product"
                         className="text-sm h-full w-full border-none outline-none bg-transparent"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <button className="h-10 px-3 text-sm bg-primary-cyan/10 border border-primary-cyan/20 rounded">
-                    <FilterIcon size={20} color="#0ab2e180" />
-                </button>
             </div>
 
-            <div className="py-6 flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                {categories.map((category, index) => (
-                    <button
-                        key={index}
-                        onClick={() => setSelectedCategory(category)}
-                        className={`text-xs whitespace-nowrap rounded py-1 px-3 w-fit h-6 flex items-center justify-center transition-all ${selectedCategory === category
-                                ? "text-darkcyan bg-primary-cyan/10 border border-primary-cyan/20"
-                                : "text-darkcyan bg-transparent border border-gray-200 hover:border-primary-cyan/20 hover:bg-primary-cyan/5"
-                            }`}
-                    >
-                        {category}
-                    </button>
-                ))}
-            </div>
-
-            <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-                {filteredEyewear.map((item) => (
-                    <div key={item.id} className="border-2 border-gray-100 rounded-2xl p-2">
-                        <div className="w-full h-36 relative rounded-lg overflow-hidden">
-                            <Image
-                                src={item.src}
-                                alt={item.name}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                            />
-                        </div>
-                        <div className="pt-3">
-                            <p className="font-normal text-darkgray text-sm">{item.name}</p>
-                            <div className="py-2 flex items-center justify-between">
-                                <p className="font-bold text-darkgray/80">N{item.price}</p>
-                                <p className={`text-xs ${item.available === "sold out" ? "text-primary-yellow font-semibold" : "text-darkgray/80 font-normal"}`}>
-                                    {item.available === "sold out" ? "sold out" : `(${item.available})`}
-                                </p>
+            {filteredProducts.length === 0 ? (
+                <div className="text-center py-12">
+                    <p className="text-darkgray">No products found.</p>
+                </div>
+            ) : (
+                <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                    {filteredProducts.map((item) => (
+                        <Link
+                            key={item._id}
+                            href={`/shop-eyewears/${item._id}`}
+                            className="border-2 border-gray-100 rounded-2xl p-2 hover:border-primary-cyan/50 transition-all duration-300"
+                        >
+                            <div className="w-full h-36 relative rounded-lg overflow-hidden">
+                                <Image
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                    unoptimized={item.imageUrl.includes('cloudinary.com')}
+                                />
+                                {item.status === 'out_of_stock' && (
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                        <span className="text-white text-xs font-semibold bg-red-500 px-2 py-1 rounded">
+                                            Out of Stock
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                        <button className="bg-primary-cyan hover:bg-primary-cyan/70 hover:shadow transition-all duration-300 ease-in-out text-white cursor-pointer w-full text-center text-sm font-semibold py-2 rounded-lg">
-                            Add to Cart
-                        </button>
-                    </div>
-                ))}
-            </section>
+                            <div className="pt-3">
+                                <p className="font-normal text-darkgray text-sm line-clamp-1">{item.name}</p>
+                                <div className="py-2 flex items-center justify-between">
+                                    <p className="font-bold text-darkgray/80">₦{item.price.toLocaleString()}</p>
+                                    <p className={`text-xs ${item.quantity === 0 ? "text-primary-yellow font-semibold" : "text-darkgray/80 font-normal"}`}>
+                                        {item.quantity === 0 ? "sold out" : `(${item.quantity})`}
+                                    </p>
+                                </div>
+                            </div>
+                        </Link>
+                    ))}
+                </section>
+            )}
 
             <style jsx>{`
                 .scrollbar-hide::-webkit-scrollbar {

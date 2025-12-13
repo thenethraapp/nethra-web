@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile } from '@/api/profile/getUserProfile';
 import Link from 'next/link';
-import { BadgeCheck, Star, Calendar, Briefcase, Video } from 'lucide-react';
+import { Star, Calendar } from 'lucide-react';
 import WheelLoader from '@/component/common/UI/WheelLoader';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import LocationPinIcon from '@mui/icons-material/LocationPin';
-import { createImmediateBooking } from '@/api/booking';
-import { toast } from 'sonner';
 
 interface ProfileResponse {
   success: boolean;
@@ -33,6 +31,8 @@ interface ProfileResponse {
       badgeStatus?: string;
       ratings?: number[];
       reviews?: unknown[];
+      consultationFeeMin?: number;
+      consultationFeeMax?: number;
     };
   };
   message?: string;
@@ -138,7 +138,6 @@ const ProfileDoc = () => {
   const displayLocation = profile?.profile?.location || 'Not specified';
   const displayExperience = profile?.profile?.yearsOfExperience || 0;
   const displayExpertise = profile?.profile?.expertise || [];
-  const badgeStatus = profile?.profile?.badgeStatus || 'pending';
   const certificateType = profile?.user?.certificateType || 'N/A';
   const displayPhoto = profile?.profile?.photo || '';
 
@@ -150,76 +149,6 @@ const ProfileDoc = () => {
       day: 'numeric'
     })
     : 'N/A';
-
-  // Book Right Now Button Component
-  const BookRightNowButton = ({ optometristId }: { optometristId: string }) => {
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleBookRightNow = async () => {
-      if (!user || user.role !== 'patient') {
-        toast.error('Only patients can book consultations');
-        return;
-      }
-
-      setIsLoading(true);
-      const loadingToast = toast.loading('Creating immediate consultation...');
-
-      try {
-        const response = await createImmediateBooking(optometristId);
-
-        if (response.success) {
-          toast.dismiss(loadingToast);
-          toast.success('Consultation Ready!', {
-            description: 'Check your notifications to join the consultation.',
-            duration: 5000,
-          });
-        } else {
-          toast.dismiss(loadingToast);
-          toast.error('Failed to create consultation', {
-            description: response.message || 'Please try again.',
-            duration: 5000,
-          });
-        }
-      } catch (error) {
-        toast.dismiss(loadingToast);
-        toast.error('Error', {
-          description: 'Failed to create immediate consultation. Please try again.',
-          duration: 5000,
-        });
-        console.error('Error creating immediate booking:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    return (
-      <button
-        onClick={handleBookRightNow}
-        disabled={isLoading}
-        className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all duration-200 ${isLoading
-            ? 'bg-gray-400 cursor-not-allowed text-white'
-            : 'bg-orange-500 hover:bg-orange-600 text-white'
-          }`}
-      >
-        {isLoading ? (
-          <>
-            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Creating...
-          </>
-        ) : (
-          <>
-            <Video className="w-5 h-5" />
-            Book Right Now (Testing)
-          </>
-        )}
-      </button>
-    );
-  };
-
-
 
   return (
     <div className="bg-gray-100 relative overflow-hidden pb-24">
@@ -283,13 +212,24 @@ const ProfileDoc = () => {
                   </div>
                 </div>
 
-                {/* Consultation Fee - Placeholder for future implementation */}
+                {/* Consultation Fee */}
                 <div className="mb-6 pb-6 border-b border-gray-200">
                   <p className="text-xs text-gray-500 mb-0.5">Consultation Fee</p>
-                  <p className="text-lg font-semibold text-primary-blue">
-                    Available on request
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">Per consultation</p>
+                  {profile?.profile?.consultationFeeMin && profile?.profile?.consultationFeeMax ? (
+                    <>
+                      <p className="text-lg font-semibold text-primary-blue">
+                        ₦{profile.profile.consultationFeeMin.toLocaleString()} - ₦{profile.profile.consultationFeeMax.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Per consultation</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-semibold text-primary-blue">
+                        Available on request
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Per consultation</p>
+                    </>
+                  )}
                 </div>
 
                 {/* Professional Statistics Grid */}
@@ -297,7 +237,7 @@ const ProfileDoc = () => {
                   {/* Total Experience */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-xs text-gray-500 mb-1">Total Experience</p>
-                    <p className="text-lg font-medium text-gray-600">
+                    <p className="text-sm overflow-hidden font-medium text-gray-600">
                       {displayExperience || 0}+ Years
                     </p>
                   </div>
@@ -305,7 +245,7 @@ const ProfileDoc = () => {
                   {/* Certificate Number */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-xs text-gray-500 mb-1">License ID</p>
-                    <p className="text-lg font-medium text-gray-600">
+                    <p className="text-sm overflow-hidden font-medium text-gray-600">
                       {profile.user.idNumber
                         ? `${profile.user.idNumber.substring(0, 5)}${'*'.repeat(profile.user.idNumber.length > 5 ? profile.user.idNumber.length - 5 : 0)}`
                         : 'N/A'}
@@ -315,7 +255,7 @@ const ProfileDoc = () => {
                   {/* Joined Date */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-xs text-gray-500 mb-1">Joined Nethra</p>
-                    <p className="text-lg font-medium text-gray-600">
+                    <p className="text-sm overflow-hidden font-medium text-gray-600">
                       {joinedDate}
                     </p>
                   </div>
@@ -327,7 +267,7 @@ const ProfileDoc = () => {
                     </p>
                     <div className="flex items-center gap-1">
                       <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                      <p className="text-lg font-medium text-gray-600">
+                      <p className="text-sm overflow-hidden font-medium text-gray-600">
                         {averageRating > 0 ? averageRating.toFixed(2) : 'N/A'}
                       </p>
                     </div>
@@ -336,7 +276,7 @@ const ProfileDoc = () => {
                 <div className='w-full pb-6 space-y-3'>
                   {isOptometrist && !isOwnProfile && (
                     <>
-                      <BookRightNowButton optometristId={profile.user.id} />
+                      {/* <BookRightNowButton optometristId={profile.user.id} /> */}
                       <Link
                         href={`/booking?optometristId=${profile.user.id}`}
                         className='w-full bg-primary-cyan flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white font-semibold transition-all duration-200 hover:bg-primary-cyan/90'

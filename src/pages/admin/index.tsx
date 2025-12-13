@@ -14,14 +14,11 @@ const AdminDashboard = () => {
 
   const [activeTab, setActiveTab] = useState('manage_users');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
       if (user && user.role === 'admin') {
-        setLoading(true);
-        setLoading(false);
+        // User data fetch logic can be added here if needed
       }
     };
 
@@ -76,7 +73,7 @@ const AdminDashboard = () => {
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
         onLogout={logout}
-        userData={userData}
+        userData={null}
       />
 
       <div className="lg:ml-80">

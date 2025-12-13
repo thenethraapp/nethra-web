@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { HiUserCircle, HiChevronDown } from 'react-icons/hi';
+import { HiChevronDown } from 'react-icons/hi';
 import { Bell, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import CloudinaryImage from '@/component/common/UI/CloudinaryImage';
@@ -42,7 +42,6 @@ export const DashboardHeader: React.FC<ExtendedDashboardHeaderProps> = ({
   onNavigate,
   isLoading = false,
 }) => {
-  const router = useRouter();
   const { user } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);

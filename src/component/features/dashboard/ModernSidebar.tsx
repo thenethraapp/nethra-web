@@ -6,7 +6,7 @@
  * Matches admin dashboard design.
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Logo from '@/component/common/UI/Logo';
 import { SidebarItem, NavigationItem } from './SidebarItem';
@@ -47,7 +47,6 @@ export const ModernSidebar: React.FC<ModernSidebarProps> = ({
   const router = useRouter();
   const { user } = useAuth();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const initializedRef = useRef(false);
 
   // Get user role from userData or fallback to context
   const userRole = userData?.user?.role || user?.role || 'patient';
@@ -172,7 +171,7 @@ export const ModernSidebar: React.FC<ModernSidebarProps> = ({
                 item={item}
                 isActive={isActive}
                 isExpanded={false}
-                onToggleExpand={() => {}}
+                onToggleExpand={() => { }}
                 onNavigate={handleNavigate}
                 onClick={handleItemClick}
               />
@@ -241,7 +240,7 @@ export const ModernSidebar: React.FC<ModernSidebarProps> = ({
                 item={item}
                 isActive={isActive}
                 isExpanded={false}
-                onToggleExpand={() => {}}
+                onToggleExpand={() => { }}
                 onNavigate={handleNavigate}
                 onClick={handleItemClick}
               />

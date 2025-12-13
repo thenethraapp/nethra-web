@@ -26,7 +26,7 @@ const Overview = () => {
   });
 
   // Fetch patient profile
-  const { data: profileData, isLoading: profileLoading } = useQuery({
+  const { data: profileData } = useQuery({
     queryKey: ['patient-profile'],
     queryFn: getPatientProfile,
     enabled: !!user,

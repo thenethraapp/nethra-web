@@ -84,7 +84,6 @@ const Overview = ({ profileData, isLoading = false }: OverviewProps) => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 lg:p-8">
         <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
           <div className="flex-shrink-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden ring-2 ring-primary-cyan ring-offset-2">
               <CloudinaryImage
                 src={displayPhoto}
                 alt={displayName}
@@ -92,7 +91,6 @@ const Overview = ({ profileData, isLoading = false }: OverviewProps) => {
                 height={96}
                 fallbackSrc="/images/avatar.png"
               />
-            </div>
           </div>
 
           <div className="flex-1 space-y-3 sm:space-y-4">

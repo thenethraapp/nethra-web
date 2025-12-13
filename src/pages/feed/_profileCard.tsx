@@ -59,6 +59,14 @@ const ProfileCard = memo<ProfileCardProps>(
                 </div>
               )}
 
+              {profile.consultationFeeMin && profile.consultationFeeMax && (
+                <div className="mb-2">
+                  <span className="text-sm font-medium text-primary-blue">
+                    ₦{profile.consultationFeeMin.toLocaleString()} - ₦{profile.consultationFeeMax.toLocaleString()}
+                  </span>
+                </div>
+              )}
+
               {profile.about && (
                 <p className="text-sm text-gray-700 mb-4 line-clamp-2">
                   {profile.about}

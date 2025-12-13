@@ -28,7 +28,7 @@ interface ChatInterfaceProps {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onBackToList }) => {
   const { user: currentUser, token } = useAuth();
   const socket = useSocketStore(state => state.socket);
-  const { isConnected, connect } = useSocketStore();
+  const { connect } = useSocketStore();
   const { setCurrentConversationId } = useMessagesStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -74,17 +74,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onB
           // Message is unread if:
           // 1. It's not from current user
           // 2. Current user hasn't read it
-          const isFromCurrentUser = typeof msg.sender.userId === 'string'
-            ? msg.sender.userId === currentUser.id
-            : (msg.sender.userId as any)?._id === currentUser.id || (msg.sender.userId as any)?.id === currentUser.id;
+          const senderUserId = msg.sender.userId;
+          const isFromCurrentUser = typeof senderUserId === 'string'
+            ? senderUserId === currentUser.id
+            : (typeof senderUserId === 'object' && senderUserId !== null)
+              ? (senderUserId._id === currentUser.id || senderUserId.id === currentUser.id)
+              : false;
 
           if (isFromCurrentUser) return false;
 
           const readBy = msg.readBy || [];
-          const isRead = readBy.some((read: any) => {
+          const isRead = readBy.some((read) => {
             const readUserId = typeof read.userId === 'string'
               ? read.userId
-              : read.userId?._id || read.userId?.id;
+              : (typeof read.userId === 'object' && read.userId !== null)
+                ? (read.userId as { _id?: string; id?: string })._id || (read.userId as { _id?: string; id?: string }).id
+                : undefined;
             return readUserId === currentUser.id;
           });
 

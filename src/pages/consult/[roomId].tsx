@@ -190,7 +190,7 @@ const VideoConsultationPage = () => {
   };
 
   // Set up Socket.io event listeners for signaling
-  const setupSocketListeners = (peer: Peer, roomId: string) => {
+  const setupSocketListeners = (peer: Peer, _roomId: string) => {
     if (!socket) return;
 
     // Listen for successful room join

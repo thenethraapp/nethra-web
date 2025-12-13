@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getPatientBookings } from '@/api/booking/patient/get-patient-bookings';
 import { toast } from 'sonner';
 import { Calendar, Clock, MapPin, User, CheckCircle, XCircle, Clock as ClockIcon, MessageSquare, Plus } from 'lucide-react';
@@ -61,32 +61,45 @@ const PatientBookings: React.FC = () => {
     const handleMessageClick = async (optometristId: string) => {
         try {
             await createConversationMutation.mutateAsync(optometristId);
-        } catch (error) {
+        } catch {
             // Error handled in mutation
         }
     };
 
-    useEffect(() => {
-        fetchBookings();
-    }, []);
-
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         try {
             setLoading(true);
             const response: BookingsResponse = await getPatientBookings();
 
+            console.log('📋 Bookings response:', response);
+
             if (response.success && response.data) {
+                console.log(`✅ Loaded ${response.data.length} bookings`);
                 setBookings(response.data);
             } else {
+                console.error('❌ Failed to fetch bookings:', response.message);
                 toast.error(response.message || 'Failed to fetch bookings');
             }
         } catch (error) {
-            console.error('Error fetching bookings:', error);
+            console.error('❌ Error fetching bookings:', error);
             toast.error('Failed to fetch bookings');
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchBookings();
+    }, [fetchBookings]);
+
+    // Refresh bookings when component becomes visible (e.g., after navigation)
+    useEffect(() => {
+        const handleFocus = () => {
+            fetchBookings();
+        };
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [fetchBookings]);
 
     const formatTimeForDisplay = (time: string): string => {
         if (!time) return '';

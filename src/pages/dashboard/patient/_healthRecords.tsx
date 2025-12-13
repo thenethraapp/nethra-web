@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPatientHealthRecords } from '@/api/records';
 import type { PatientRecord } from '@/types/api/record';
-import { Calendar, FileText, User, Mail, Phone, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, User, Mail, Phone, Eye, Loader2, AlertCircle } from 'lucide-react';
 
 const HealthRecords: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<PatientRecord | null>(null);

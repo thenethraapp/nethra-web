@@ -14,19 +14,18 @@ export const GrowthIndicator: React.FC<GrowthIndicatorProps> = ({
   variant = 'dark',
 }) => {
   const textColor = variant === 'light' ? 'text-white/70' : 'text-gray-500';
-  
+
   // Determine if growth is positive or negative
   const isPositive = !percentage.startsWith('-');
-  const isNegative = percentage.startsWith('-');
-  
+
   // Set colors based on growth direction
   const percentageColor = isPositive
     ? variant === 'light'
       ? 'text-primary-cyan'
       : 'text-green-600'
     : variant === 'light'
-    ? 'text-red-300'
-    : 'text-red-600';
+      ? 'text-red-300'
+      : 'text-red-600';
 
   const ArrowIcon = isPositive ? HiArrowUp : HiArrowDown;
 

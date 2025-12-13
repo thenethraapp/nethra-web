@@ -46,17 +46,35 @@ export async function getNotifications(
   skip = 0,
   isRead?: boolean
 ): Promise<GetNotificationsResponse> {
-  const params = new URLSearchParams({
-    limit: limit.toString(),
-    skip: skip.toString(),
-  });
+  try {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      skip: skip.toString(),
+    });
 
-  if (isRead !== undefined) {
-    params.append('isRead', isRead.toString());
+    if (isRead !== undefined) {
+      params.append('isRead', isRead.toString());
+    }
+
+    const response = await apiClient.get<GetNotificationsResponse>(
+      `/api/notifications?${params.toString()}`
+    );
+    return response.data;
+  } catch (error: unknown) {
+    // Handle 403 (Forbidden) and other auth errors gracefully
+    const axiosError = error as { response?: { status?: number } };
+    if (axiosError?.response?.status === 403 || axiosError?.response?.status === 401) {
+      console.warn('Access denied to notifications:', axiosError.response?.status);
+      // Return empty response instead of throwing
+      return {
+        notifications: [],
+        totalCount: 0,
+        unreadCount: 0,
+        hasMore: false,
+      };
+    }
+
+    // Re-throw other errors
+    throw error;
   }
-
-  const response = await apiClient.get<GetNotificationsResponse>(
-    `/api/notifications?${params.toString()}`
-  );
-  return response.data;
 }

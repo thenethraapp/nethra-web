@@ -1,5 +1,4 @@
 import { getAllUsers } from "@/api/admin/getAllUsers";
-import { useAuth } from "@/context/AuthContext";
 
 import { useState, useEffect } from 'react';
 import { Users, UserCheck, Activity, Search } from 'lucide-react';
@@ -223,8 +222,8 @@ const ManageUsers = () => {
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
                   className={`cursor-pointer py-4 px-2 font-semibold text-sm transition-colors relative ${activeTab === tab
-                      ? 'text-vividblue'
-                      : 'text-grayblue hover:text-charcoal'
+                    ? 'text-vividblue'
+                    : 'text-grayblue hover:text-charcoal'
                     }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}

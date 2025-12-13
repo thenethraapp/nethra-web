@@ -1,7 +1,7 @@
 import React from 'react'
 import { AlertCircle } from 'lucide-react'
 
-const ProfileUncompleted = ({ onClose, onCompleteProfile }: {
+const ProfileUncompleted = ({ onClose: _onClose, onCompleteProfile }: {
   onClose: () => void,
   onCompleteProfile: () => void
 }) => {

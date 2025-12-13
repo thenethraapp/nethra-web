@@ -11,6 +11,8 @@ interface OptometristProfileData {
   location: string;
   expertise: string[];
   yearsOfExperience: number;
+  consultationFeeMin?: number;
+  consultationFeeMax?: number;
 }
 
 export const createOptometristProfile = async (profileData: OptometristProfileData) => {

@@ -31,9 +31,21 @@ export const useNotifications = () => {
       setNotifications(response.notifications);
       setUnreadCount(response.unreadCount);
       setHasMore(response.hasMore);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching notifications:', error);
-      toast.error('Failed to load notifications');
+
+      // Handle 403/401 errors gracefully - user might not have permission
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status === 403 || axiosError?.response?.status === 401) {
+        // Set empty state instead of showing error
+        setNotifications([]);
+        setUnreadCount(0);
+        setHasMore(false);
+        // Don't show toast for permission errors - they're expected in some cases
+      } else {
+        // Only show toast for unexpected errors
+        // toast.error('Failed to load notifications');
+      }
     } finally {
       setLoading(false);
     }
@@ -85,9 +97,17 @@ export const useNotifications = () => {
       const response = await getNotifications(20, notifications.length);
       setNotifications([...notifications, ...response.notifications]);
       setHasMore(response.hasMore);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading more notifications:', error);
-      toast.error('Failed to load more notifications');
+
+      // Handle 403/401 errors gracefully
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status === 403 || axiosError?.response?.status === 401) {
+        // Stop trying to load more if we don't have permission
+        setHasMore(false);
+      } else {
+        toast.error('Failed to load more notifications');
+      }
     } finally {
       setLoading(false);
     }

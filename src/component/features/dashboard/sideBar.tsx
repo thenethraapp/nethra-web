@@ -1,11 +1,9 @@
 import {
   User,
   Calendar,
-  MessageCircle,
   FileText,
-  CreditCard,
   DollarSign,
-  Settings, HelpCircle, X, LogOut,
+  Settings, X, LogOut,
   ShoppingCart
 } from 'lucide-react';
 import { FaStarOfLife } from "react-icons/fa6";

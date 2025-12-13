@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import React from 'react';
 import { FaStar } from 'react-icons/fa';
 import { GiHealthNormal } from "react-icons/gi";
@@ -33,7 +32,6 @@ const TestimonialsSection = () => {
     }
   ];
 
-  const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
 
   return (
     <section className='bg-vividblue py-20 px-4 relative overflow-hidden'>
@@ -59,7 +57,7 @@ const TestimonialsSection = () => {
 
         {/* Testimonials Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {testimonials.map((testimonial, index) => (
+          {testimonials.map((testimonial) => (
             <article
               key={testimonial.id}
               className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 hover:bg-white/15 transition-all duration-300 transform hover:-translate-y-2 border border-white/20"

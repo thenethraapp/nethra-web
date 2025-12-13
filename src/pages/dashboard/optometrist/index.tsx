@@ -33,7 +33,7 @@ const OptometristDashboard = () => {
   }, [router.query.tab]);
 
   const { profileData, isLoading, isProfileIncomplete } = useProfile();
-  
+
   useEffect(() => {
     if (isProfileIncomplete && !hasSeenProfileModal) {
       setShowProfileModal(true);
@@ -65,9 +65,6 @@ const OptometristDashboard = () => {
     setHasSeenProfileModal(true);
   }, []);
 
-  const handleShowNotifications = useCallback(() => {
-    setShowNotificationsSidebar(true);
-  }, []);
 
   const handleCloseNotifications = useCallback(() => {
     setShowNotificationsSidebar(false);
