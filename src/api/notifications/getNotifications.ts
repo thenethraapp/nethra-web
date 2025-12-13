@@ -28,6 +28,8 @@ export interface Notification {
   isRead: boolean;
   readAt?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  actionUrl?: string;
+  actionLabel?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,7 +56,7 @@ export async function getNotifications(
   }
 
   const response = await apiClient.get<GetNotificationsResponse>(
-    `/api/notifications/notifications?${params.toString()}`
+    `/api/notifications?${params.toString()}`
   );
   return response.data;
 }

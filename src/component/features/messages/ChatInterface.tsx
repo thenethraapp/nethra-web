@@ -3,6 +3,7 @@ import { Send, ArrowLeft } from 'lucide-react';
 import { getSocket } from '@/utils/socket';
 import { useAuth } from '@/context/AuthContext';
 import { useSocketStore } from '@/store/useSocketStore';
+import { useMessagesStore } from '@/store/useMessagesStore';
 import { getMessages, Message } from "@/api/messaging/messages/messages";
 import CloudinaryImage from '@/component/common/UI/CloudinaryImage';
 
@@ -28,6 +29,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onB
   const { user: currentUser, token } = useAuth();
   const socket = useSocketStore(state => state.socket);
   const { isConnected, connect } = useSocketStore();
+  const { setCurrentConversationId } = useMessagesStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,9 +46,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onB
     }
   }, [token, connect]);
 
-  // Fetch messages when conversationId changes
+  // Track current conversation ID in store
   useEffect(() => {
-    if (!conversationId) return;
+    if (conversationId) {
+      setCurrentConversationId(conversationId);
+    } else {
+      setCurrentConversationId(null);
+    }
+    return () => {
+      setCurrentConversationId(null);
+    };
+  }, [conversationId, setCurrentConversationId]);
+
+  // Fetch messages when conversationId changes and mark unread messages as read
+  useEffect(() => {
+    if (!conversationId || !socket || !currentUser) return;
 
     const fetchMessages = async () => {
       setLoading(true);
@@ -54,6 +68,43 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onB
       try {
         const data = await getMessages(conversationId);
         setMessages(data.messages || []);
+
+        // Mark all unread messages in this conversation as read
+        const unreadMessages = data.messages.filter((msg: Message) => {
+          // Message is unread if:
+          // 1. It's not from current user
+          // 2. Current user hasn't read it
+          const isFromCurrentUser = typeof msg.sender.userId === 'string'
+            ? msg.sender.userId === currentUser.id
+            : (msg.sender.userId as any)?._id === currentUser.id || (msg.sender.userId as any)?.id === currentUser.id;
+
+          if (isFromCurrentUser) return false;
+
+          const readBy = msg.readBy || [];
+          const isRead = readBy.some((read: any) => {
+            const readUserId = typeof read.userId === 'string'
+              ? read.userId
+              : read.userId?._id || read.userId?.id;
+            return readUserId === currentUser.id;
+          });
+
+          return !isRead;
+        });
+
+        // Mark each unread message as read
+        unreadMessages.forEach((msg: Message) => {
+          socket.emit('message_read', {
+            messageId: msg._id,
+            conversationId: conversationId
+          });
+        });
+
+        // Request updated unread count after marking messages as read
+        if (unreadMessages.length > 0) {
+          setTimeout(() => {
+            socket.emit('get_unread_count');
+          }, 500); // Small delay to ensure backend has processed the reads
+        }
       } catch (err) {
         console.error('Error fetching messages:', err);
         setError('Failed to load messages');
@@ -63,7 +114,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onB
     };
 
     fetchMessages();
-  }, [conversationId, currentUser]);
+  }, [conversationId, currentUser, socket]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -300,8 +351,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, conversationId, onB
               >
                 <div
                   className={`max-w-[75%] sm:max-w-[70%] px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${isOwnMessage
-                      ? 'rounded-br-sm'
-                      : 'rounded-bl-sm'
+                    ? 'rounded-br-sm'
+                    : 'rounded-bl-sm'
                     }`}
                   style={{
                     backgroundColor: isOwnMessage ? '#0ab2e1' : '#ffffff',

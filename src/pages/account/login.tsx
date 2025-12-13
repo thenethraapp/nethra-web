@@ -127,9 +127,10 @@ const Login = () => {
                     router.push(route);
                 }
             } else {
-                // Check if it's an invalid credentials error (401 or 400 status codes)
-                const isInvalidCredentials = result.code === 401 || result.code === 400;
-                if (isInvalidCredentials) {
+                // Handle different error codes with appropriate messages
+                if (result.code === 404) {
+                    toast.error("User not found. Please check your credentials.");
+                } else if (result.code === 401 || result.code === 400) {
                     toast.error("Incorrect email or password");
                 } else {
                     toast.error(result.message || "Login failed. Please try again.");
@@ -137,8 +138,13 @@ const Login = () => {
             }
         },
         onError: (error) => {
-            toast.error(error.message || "An unexpected error occurred.");
-        }
+            // This should rarely be called since loginUser catches all errors
+            // But handle it gracefully just in case
+            console.error("Unexpected login error:", error);
+            toast.error("An unexpected error occurred. Please try again.");
+        },
+        // Prevent React Query from throwing errors to error boundary
+        throwOnError: false,
     });
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,26 +186,9 @@ const Login = () => {
         <>
             <Head>
                 <title>Login - Nethra Eye Care Platform</title>
-                <meta name="description" content="Login to Nethra - Connect with optometrists and access professional eye care services. Secure login for patients and optometrists." />
-                <meta name="keywords" content="eye care login, optometrist login, patient portal, Nethra login, eye consultation" />
+                <meta name="robots" content="noindex, nofollow" />
                 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-
-                {/* Open Graph */}
-                <meta property="og:title" content="Login - Nethra Eye Care Platform" />
-                <meta property="og:description" content="Login to Nethra - Connect with optometrists and access professional eye care services." />
-                <meta property="og:type" content="website" />
-                <meta property="og:image" content="/images/auth/login.webp" />
-
-                {/* Twitter Card */}
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content="Login - Nethra Eye Care Platform" />
-                <meta name="twitter:description" content="Login to Nethra - Connect with optometrists and access professional eye care services." />
-
-                {/* Security */}
                 <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
-
-                {/* Canonical URL */}
-                <link rel="canonical" href="https://nethra.app/account/login" />
             </Head>
 
             <div className="flex flex-col md:flex-row min-h-screen -mt-[60px]">

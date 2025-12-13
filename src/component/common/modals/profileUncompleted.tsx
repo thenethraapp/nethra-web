@@ -1,23 +1,13 @@
 import React from 'react'
-import { AlertCircle, X } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 
-const ProfileUncompleted = ({ onClose, onCompleteProfile }:{
-    onClose: () => void,
-    onCompleteProfile: () => void
+const ProfileUncompleted = ({ onClose, onCompleteProfile }: {
+  onClose: () => void,
+  onCompleteProfile: () => void
 }) => {
   return (
-    <section className='fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50'>
+    <section className='fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]'>
       <div className='bg-white rounded-3xl shadow-xl max-w-md w-full p-6 relative animate-fade-in'>
-        {/* Close button */}
-        {/* <button
-          onClick={onClose}
-          className='absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors'
-          aria-label='Close modal'
-        >
-          <X size={20} />
-        </button> */}
-
-        {/* Icon */}
         <div className='flex justify-center mb-4'>
           <div className='bg-red-100 rounded-full p-3'>
             <AlertCircle className='text-red-600' size={32} />

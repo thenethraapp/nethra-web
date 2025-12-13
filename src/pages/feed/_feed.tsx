@@ -22,11 +22,8 @@ const OptometristsFeed = ({
       setSelectedUserId(userId);
       setIsModalOpen(true);
     } else {
-      // Store userId in sessionStorage for state-based navigation
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('profileUserId', userId);
-      }
-      router.push('/profile/doc');
+      // Use URL query parameter for persistent navigation
+      router.push(`/profile/doc?userId=${userId}`);
     }
   }, [currentUser, router]);
 

@@ -6,6 +6,7 @@ import CataloguePreview from './dropdowns/catalogue-preview';
 import ContactPreview from './dropdowns/contact-preview';
 import { Bell, MessageSquare, Menu, X, ChevronDown } from 'lucide-react';
 import { useNotificationStore } from '@/store/useNotificationStore';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useMessagesStore } from '@/store/useMessagesStore';
 import { useQuery } from '@tanstack/react-query';
 import { getUserProfile } from '@/api/profile/getUserProfile';
@@ -20,6 +21,7 @@ const Navbar = () => {
   const contactDropdownRef = useRef<HTMLDivElement>(null);
 
   const { toggleNotificationVisibility } = useNotificationStore();
+  const { unreadCount } = useNotifications();
   const { toggleMessagesVisibility } = useMessagesStore();
 
   const [activeRoute, setActiveRoute] = useState('Home');
@@ -211,7 +213,11 @@ const Navbar = () => {
                   aria-label="Notifications"
                 >
                   <Bell className="w-5 h-5 text-darkgray" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* Profile Dropdown */}
@@ -318,7 +324,11 @@ const Navbar = () => {
                   aria-label="Notifications"
                 >
                   <Bell className="w-5 h-5 text-darkgray" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* Profile Dropdown */}

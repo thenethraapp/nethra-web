@@ -2,9 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile } from '@/api/profile/getUserProfile';
 import Link from 'next/link';
-import { BadgeCheck, Star, Calendar } from 'lucide-react';
+import { BadgeCheck, Star, Calendar, Briefcase, Video } from 'lucide-react';
 import WheelLoader from '@/component/common/UI/WheelLoader';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
+import LocationPinIcon from '@mui/icons-material/LocationPin';
+import { createImmediateBooking } from '@/api/booking';
+import { toast } from 'sonner';
 
 interface ProfileResponse {
   success: boolean;
@@ -17,6 +21,8 @@ interface ProfileResponse {
       phone?: string;
       role: string;
       certificateType?: string;
+      createdAt?: string;
+      idNumber?: string;
     };
     profile: {
       photo?: string;
@@ -35,6 +41,8 @@ interface ProfileResponse {
 
 const ProfileDoc = () => {
   const { user } = useAuth();
+  const router = useRouter();
+  const { userId } = router.query;
   const [profileData, setProfileData] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,31 +53,36 @@ const ProfileDoc = () => {
         setLoading(true);
         setError(null);
 
-        // Get userId from sessionStorage (state-based navigation)
+        // Get userId from URL query parameter (persistent across refreshes)
+        // Fallback to sessionStorage for backward compatibility
+        // Then fallback to current user if viewing own profile
         let targetUserId: string | null = null;
-        if (typeof window !== 'undefined') {
+
+        if (userId && typeof userId === 'string') {
+          targetUserId = userId;
+        } else if (typeof window !== 'undefined') {
+          // Backward compatibility: check sessionStorage
           targetUserId = sessionStorage.getItem('profileUserId');
+          // Clear sessionStorage after reading (migration to URL params)
+          if (targetUserId) {
+            sessionStorage.removeItem('profileUserId');
+          }
         }
 
         // Only use current user as fallback if we're viewing our own profile
-        // If sessionStorage has a userId, use it (even if it's the same as current user)
         if (!targetUserId) {
-          // Only fallback to current user if no userId in sessionStorage
           targetUserId = user?.id || null;
         }
 
         if (!targetUserId) {
           setError('User not found');
+          setLoading(false);
           return;
         }
 
         const data = await getUserProfile(targetUserId);
         if (data.success && data.data) {
           setProfileData(data as ProfileResponse);
-          // Clear sessionStorage only after successful fetch
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('profileUserId');
-          }
         } else {
           setError(data.message || 'Failed to load profile data');
         }
@@ -81,15 +94,17 @@ const ProfileDoc = () => {
       }
     };
 
+    // Wait for router to be ready before fetching
+    // This ensures query params are available
+    if (!router.isReady) {
+      return;
+    }
+
     fetchProfileData();
-    // Only run once on mount, not when user changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId, user?.id, router.isReady]);
 
   if (loading) {
-    return (
-      <WheelLoader />
-    );
+    return <WheelLoader />;
   }
 
   if (error) {
@@ -108,7 +123,6 @@ const ProfileDoc = () => {
     );
   }
 
-  // TypeScript guard: we've already checked data exists above
   const profile = profileData.data!;
   const isOwnProfile = profile.user.id === user?.id;
   const isOptometrist = profile.user.role === 'optometrist';
@@ -121,200 +135,226 @@ const ProfileDoc = () => {
   const totalReviews = profile?.profile?.reviews?.length || 0;
 
   const displayName = profile?.user?.fullName || profile?.user?.username || 'User';
-  const displayEmail = profile?.user?.email || '';
-  const displayPhone = profile?.user?.phone || '';
   const displayLocation = profile?.profile?.location || 'Not specified';
   const displayExperience = profile?.profile?.yearsOfExperience || 0;
   const displayExpertise = profile?.profile?.expertise || [];
-  const displayAbout = profile?.profile?.about || 'Tell your patients about yourself';
   const badgeStatus = profile?.profile?.badgeStatus || 'pending';
   const certificateType = profile?.user?.certificateType || 'N/A';
   const displayPhoto = profile?.profile?.photo || '';
 
-  return (
-    <div className="min-h-screen relative bg-gray-50">
-      <div className="w-full mx-auto space-y-6 pb-30 px-4 sm:px-6 py-6">
-        {/* Profile Header Card */}
-        <div className="bg-white shadow-md rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div className="relative flex-shrink-0">
-                {displayPhoto ? (
-                  <Image
-                    src={displayPhoto}
-                    alt="Profile"
-                    width={60}
-                    height={60}
-                    className="w-15 h-15 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-primary-cyan"
-                  />
-                ) : (
-                  <Image
-                    src="/icons/avatar.png"
-                    alt="Profile"
-                    width={60}
-                    height={60}
-                    className="w-15 h-15 sm:w-20 sm:h-20 rounded-full object-cover"
-                  />
-                )}
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">{displayName}</h1>
-                <p className="text-gray-500 text-sm mt-1 capitalize">{profile?.user?.role}</p>
-              </div>
-            </div>
-            {/* Book Appointment Button - only show if not own profile and is optometrist */}
-            {isOptometrist && !isOwnProfile && (
-              <Link
-                className="mt-4 sm:mt-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-cyan hover:bg-primary-darkcyan cursor-pointer rounded-full text-white font-medium transition-all text-sm shadow-md hover:shadow-lg w-full sm:w-auto"
-                href={`/booking?optometristId=${profile.user.id}`}
-              >
-                <Calendar size={16} />
-                <span className="truncate">Book Appointment</span>
-              </Link>
-            )}
-          </div>
-        </div>
+  // Format joined date
+  const joinedDate = profile?.user?.createdAt
+    ? new Date(profile.user.createdAt).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+    : 'N/A';
 
-        {/* Basic Information Card */}
-        <div className="bg-white shadow-md rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Basic Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="flex justify-between items-center border-none outline-none p-2 rounded-md">
-              <div className="flex-1">
-                <p className="text-gray-500 text-xs">Your Name</p>
-                <p className="font-medium">{displayName}</p>
-              </div>
-            </div>
+  // Book Right Now Button Component
+  const BookRightNowButton = ({ optometristId }: { optometristId: string }) => {
+    const [isLoading, setIsLoading] = useState(false);
 
-            <div className="flex justify-between items-center border-none outline-none p-2 rounded-md">
-              <div className="flex-1">
-                <p className="text-gray-500 text-xs">Email</p>
-                <p className="font-medium">{displayEmail}</p>
-              </div>
-            </div>
+    const handleBookRightNow = async () => {
+      if (!user || user.role !== 'patient') {
+        toast.error('Only patients can book consultations');
+        return;
+      }
 
-            <div className="flex justify-between items-center border-none outline-none p-2 rounded-md">
-              <div className="flex-1">
-                <p className="text-gray-500 text-xs">Phone Number</p>
-                <p className="font-medium">{displayPhone}</p>
-              </div>
-            </div>
+      setIsLoading(true);
+      const loadingToast = toast.loading('Creating immediate consultation...');
 
-            <div className="flex justify-between items-center border-none outline-none p-2 rounded-md">
-              <div className="flex-1">
-                <p className="text-gray-500 text-xs">Location</p>
-                <p className="font-medium">{displayLocation}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+      try {
+        const response = await createImmediateBooking(optometristId);
 
-        {/* About Section */}
-        <div className="bg-white shadow-md rounded-xl p-6">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold text-gray-700">
-              About <span className="text-primary-cyan">{displayName}</span>
-            </h3>
-          </div>
-          <p className="text-sm text-gray-600 mt-2">
-            {displayAbout}
-          </p>
-        </div>
+        if (response.success) {
+          toast.dismiss(loadingToast);
+          toast.success('Consultation Ready!', {
+            description: 'Check your notifications to join the consultation.',
+            duration: 5000,
+          });
+        } else {
+          toast.dismiss(loadingToast);
+          toast.error('Failed to create consultation', {
+            description: response.message || 'Please try again.',
+            duration: 5000,
+          });
+        }
+      } catch (error) {
+        toast.dismiss(loadingToast);
+        toast.error('Error', {
+          description: 'Failed to create immediate consultation. Please try again.',
+          duration: 5000,
+        });
+        console.error('Error creating immediate booking:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-        {/* Professional Details Card */}
-        <div className="bg-white shadow-md rounded-xl p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BadgeCheck className="text-primary-cyan" />
-              <p className="text-sm text-gray-500">Professional details shown to users</p>
-            </div>
-          </div>
-
-          {/* Expertise Section */}
-          <div>
-            <p className="font-medium mb-2">Expertise In</p>
-            <div className="flex flex-wrap gap-2">
-              {displayExpertise.length > 0 ? (
-                displayExpertise.map((expertise: string, index: number) => (
-                  <span key={index} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                    {expertise}
-                  </span>
-                ))
-              ) : (
-                <span className="text-gray-500 text-sm">No expertise added yet</span>
-              )}
-            </div>
-          </div>
-
-          {/* Years of Experience */}
-          <div>
-            <p className="font-medium mb-2">Total Experience</p>
-            <div className="bg-gray-50 rounded-md p-3 flex justify-between items-center shadow-inner">
-              <span className="text-gray-800 font-semibold">
-                {displayExperience || 0} Years
-              </span>
-              <span className="text-gray-500 text-sm">of total experience</span>
-            </div>
-          </div>
-
-          {/* Ratings */}
-          <div>
-            <p className="font-medium mb-2">Ratings</p>
-            <div className="bg-blue-100 text-primary-cyan rounded-md p-3 flex justify-between items-center">
-              <div className="flex items-center gap-1">
-                <Star className="w-5 h-5 fill-current" />
-                <span className="font-semibold">
-                  {averageRating > 0 ? `${averageRating.toFixed(1)} Stars` : 'No ratings yet'}
-                </span>
-              </div>
-              <span className="text-sm text-primary-cyan">
-                {totalReviews > 0 ? `from ${totalReviews} users` : 'No reviews yet'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Legal Section */}
-        <div className="bg-white shadow-md rounded-xl p-6">
-          <h3 className="font-semibold text-gray-700 mb-4">Legal</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span>Badge Status</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${badgeStatus === 'verified'
-                ? 'bg-green-100 text-green-600'
-                : 'bg-yellow-100 text-yellow-600'
-                }`}>
-                {badgeStatus === 'verified' ? 'Verified' : 'Pending'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Certificate Type</span>
-              <span className="text-gray-600">{certificateType}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Book Appointment Button - Show for optometrist profiles when not viewing own profile */}
-        {isOptometrist && !isOwnProfile && (
-          <div className="bg-white shadow-md rounded-xl p-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-1">Ready to Book?</h3>
-                <p className="text-sm text-gray-600">Schedule an appointment with {displayName}</p>
-              </div>
-              <Link
-                className='inline-flex items-center justify-center gap-2 px-8 py-3 bg-primary-cyan hover:bg-primary-darkcyan cursor-pointer rounded-full text-white font-medium transition-all shadow-md hover:shadow-lg'
-                href={`/booking?optometristId=${profile.user.id}`}>
-                <Calendar size={18} />
-                Book Appointment
-              </Link>
-            </div>
-          </div>
+    return (
+      <button
+        onClick={handleBookRightNow}
+        disabled={isLoading}
+        className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all duration-200 ${isLoading
+            ? 'bg-gray-400 cursor-not-allowed text-white'
+            : 'bg-orange-500 hover:bg-orange-600 text-white'
+          }`}
+      >
+        {isLoading ? (
+          <>
+            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Creating...
+          </>
+        ) : (
+          <>
+            <Video className="w-5 h-5" />
+            Book Right Now (Testing)
+          </>
         )}
+      </button>
+    );
+  };
+
+
+
+  return (
+    <div className="bg-gray-100 relative overflow-hidden pb-24">
+
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 lg:pt-12">
+        {/* Main Profile Card */}
+        <div className="bg-white rounded-2xl shadow overflow-hidden w-full max-w-5xl mx-auto">
+          <div className="px-6 lg:px-8 pt-6 lg:pt-8">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+              {/* Profile Image */}
+              <div className="flex-shrink-0">
+                <div className="relative w-48 h-48 lg:w-64 lg:h-64 mx-auto lg:mx-0">
+                  {displayPhoto ? (
+                    <Image
+                      src={displayPhoto}
+                      alt={displayName}
+                      fill
+                      className="rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-xl bg-gradient-to-br from-primary-cyan to-primary-blue flex items-center justify-center">
+                      <span className="text-white text-4xl font-bold">
+                        {displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Profile Information */}
+              <div className="flex-1 min-w-0">
+                {/* Name and Qualifications */}
+                <div className="mb-4">
+                  <h2 className="text-2xl lg:text-3xl font-semibold text-primary-blue mb-2">
+                    Dr. {displayName}
+                  </h2>
+                  <p className="text-lg font-medium text-gray-800 mb-1">
+                    {certificateType}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {
+                      displayExpertise.length > 0 && displayExpertise.map((expertise: string, index: number) => (
+                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-primary-cyan/5 text-primary-cyan border border-primary-cyan/10">
+                          {expertise}
+                        </span>
+                      ))
+                    }
+                  </div>
+                </div>
+
+                {/* Working At */}
+                <div className="mb-4">
+                  <div className="flex items-start gap-2">
+                    <LocationPinIcon className="text-[#4FD9B3] text-base" />
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Location</p>
+                      <p className="text-sm lg:text-base text-gray-800">
+                        {displayLocation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Consultation Fee - Placeholder for future implementation */}
+                <div className="mb-6 pb-6 border-b border-gray-200">
+                  <p className="text-xs text-gray-500 mb-0.5">Consultation Fee</p>
+                  <p className="text-lg font-semibold text-primary-blue">
+                    Available on request
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Per consultation</p>
+                </div>
+
+                {/* Professional Statistics Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {/* Total Experience */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Total Experience</p>
+                    <p className="text-lg font-medium text-gray-600">
+                      {displayExperience || 0}+ Years
+                    </p>
+                  </div>
+
+                  {/* Certificate Number */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">License ID</p>
+                    <p className="text-lg font-medium text-gray-600">
+                      {profile.user.idNumber
+                        ? `${profile.user.idNumber.substring(0, 5)}${'*'.repeat(profile.user.idNumber.length > 5 ? profile.user.idNumber.length - 5 : 0)}`
+                        : 'N/A'}
+                    </p>
+                  </div>
+
+                  {/* Joined Date */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Joined Nethra</p>
+                    <p className="text-lg font-medium text-gray-600">
+                      {joinedDate}
+                    </p>
+                  </div>
+
+                  {/* Rating */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">
+                      Total Rating {totalReviews > 0 && `(${totalReviews})`}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                      <p className="text-lg font-medium text-gray-600">
+                        {averageRating > 0 ? averageRating.toFixed(2) : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className='w-full pb-6 space-y-3'>
+                  {isOptometrist && !isOwnProfile && (
+                    <>
+                      <BookRightNowButton optometristId={profile.user.id} />
+                      <Link
+                        href={`/booking?optometristId=${profile.user.id}`}
+                        className='w-full bg-primary-cyan flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white font-semibold transition-all duration-200 hover:bg-primary-cyan/90'
+                      >
+                        <Calendar className="w-5 h-5" />
+                        Book Appointment Now
+                      </Link>
+                    </>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
 export default ProfileDoc;
-

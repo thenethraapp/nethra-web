@@ -134,6 +134,8 @@ const initialRefractiveProcedure: RefractiveProcedureData = {
 interface FormData {
   _id?: string;
   patientName: string;
+  patientId?: string; // For registered patients
+  isRegisteredPatient?: boolean;
   age: number;
   phone: string;
   email: string;
@@ -146,6 +148,8 @@ interface FormData {
 
 const initialFormData: FormData = {
   patientName: '',
+  patientId: undefined,
+  isRegisteredPatient: false,
   age: 0,
   phone: '',
   email: '',
@@ -218,6 +222,8 @@ export const usePatientRecordStore = create<PatientRecordStoreState>()(
             const updatedFormData = {
               ...state.formData,
               patientName: (data as { patientName?: string }).patientName ?? state.formData.patientName,
+              patientId: (data as { patientId?: string }).patientId ?? state.formData.patientId,
+              isRegisteredPatient: (data as { isRegisteredPatient?: boolean }).isRegisteredPatient ?? state.formData.isRegisteredPatient,
               age: (data as { age?: number | string }).age
                 ? parseInt(String((data as { age?: number | string }).age))
                 : state.formData.age,
@@ -287,7 +293,7 @@ export const usePatientRecordStore = create<PatientRecordStoreState>()(
             // @ts-expect-error - Type issue
             doctorObservation: updatedDoctorObservation
           },
-            // @ts-expect-error - Type issu
+          // @ts-expect-error - Type issu
           doctorObservation: updatedDoctorObservation
         });
       },
@@ -328,6 +334,8 @@ export const usePatientRecordStore = create<PatientRecordStoreState>()(
         const loadedFormData = {
           _id: record._id,
           patientName: record.patientName,
+          patientId: record.patientId,
+          isRegisteredPatient: record.isRegisteredPatient ?? false,
           age: record.age,
           phone: record.phone ?? '',
           email: record.email ?? '',

@@ -3,7 +3,6 @@ import "@/styles/globals.css";
 import { useRouter } from "next/router";
 import type { AppProps } from "next/app";
 import { useMemo, memo, useEffect } from "react";
-import dynamic from "next/dynamic";
 import Footer from "@/component/layout/footer";
 import Navbar from "@/component/layout/navbar";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -14,6 +13,7 @@ import NotificationsBar from '@/component/features/notifications/notificationsBa
 import MessagesBar from '@/component/features/messages/MessagesBar';
 import { ProfileProvider } from '@/context/ProfileContext';
 import { Toaster } from 'sonner';
+import { useMessageToasts } from '@/hooks/useMessageToasts';
 
 // Memoized layout wrapper to prevent unnecessary re-renders
 const Layout = memo(({ children, showLayout }: { children: React.ReactNode; showLayout: boolean }) => {
@@ -33,6 +33,9 @@ function AppContent({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const { connect, disconnect } = useSocketStore();
   const { token, user, loading } = useAuth();
+
+  // Enable message toast notifications
+  useMessageToasts();
 
   // Connect/disconnect socket based on token
   useEffect(() => {
@@ -75,7 +78,20 @@ function AppContent({ Component, pageProps }: AppProps) {
       <Layout showLayout={showLayout}>
         <Component {...pageProps} />
       </Layout>
-      <Toaster richColors />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        toastOptions={{
+          style: {
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '0.75rem',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          },
+          className: 'message-toast',
+        }}
+      />
     </SocketProvider>
   );
 }
@@ -86,6 +102,18 @@ export default function App(props: AppProps) {
       <Head>
         <title>Nethra - Revolutionizing eye care in Nigeria</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        {/* Google Analytics */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-PRTL4LH2JJ"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-PRTL4LH2JJ');
+            `,
+          }}
+        />
       </Head>
       <ReactQueryProvider>
         <AuthProvider>

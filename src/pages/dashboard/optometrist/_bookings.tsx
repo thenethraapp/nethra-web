@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { getAllOptometristBookings } from '@/api/booking';
 import { acceptBooking } from '@/api/booking';
 import { declineBooking } from '@/api/booking';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import WheelLoader from '@/component/common/UI/WheelLoader';
+import { Calendar, Clock, MessageSquare, User, CheckCircle, XCircle } from 'lucide-react';
+import { useMessagesStore } from '@/store/useMessagesStore';
+import { useMutation } from '@tanstack/react-query';
+import { createConversation } from '@/api/messaging/conversations/createConversation';
+import { useAuth } from '@/context/AuthContext';
 
 interface Patient {
     _id: string;
@@ -38,6 +43,36 @@ const Bookings: React.FC = () => {
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
     const [actionLoading, setActionLoading] = useState<string>('');
     const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all');
+    const { show: showMessages } = useMessagesStore();
+    const { user } = useAuth();
+
+    // Mutation to create conversation and open messaging
+    const createConversationMutation = useMutation({
+        mutationFn: (patientId: string) => createConversation({
+            otherUserId: patientId,
+            otherUserType: 'patient',
+            metadata: {}
+        }),
+        onSuccess: (data) => {
+            showMessages(data.conversation.participants.find(p => p.userId !== user?.id)?.userId || '');
+            toast.success('Opening conversation...');
+        },
+        onError: (error: Error) => {
+            toast.error('Failed to open conversation');
+            console.error('Error creating conversation:', error);
+        }
+    });
+
+    const handleMessageClick = async (patientId: string, e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+        }
+        try {
+            await createConversationMutation.mutateAsync(patientId);
+        } catch (error) {
+            // Error handled in mutation
+        }
+    };
 
     useEffect(() => {
         fetchBookings();
@@ -184,8 +219,8 @@ const Bookings: React.FC = () => {
                                     key={key}
                                     onClick={() => setFilter(key as 'all' | 'pending' | 'accepted' | 'declined')}
                                     className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${filter === key
-                                            ? 'border-blue-500 text-vividblue'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-500 text-vividblue'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {label} ({getFilterCount(key)})
@@ -216,43 +251,93 @@ const Bookings: React.FC = () => {
                         {filteredBookings.map((booking) => (
                             <div
                                 key={booking._id}
-                                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                                className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden group cursor-pointer"
                                 onClick={() => setSelectedBooking(booking)}
                             >
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 mb-1">
-                                            {booking.patient.username}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">{booking.patient.email}</p>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(booking.status)}`}>
-                                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                                    </span>
-                                </div>
+                                {/* Status Header Bar */}
+                                <div className={`h-1 ${booking.status === 'accepted' ? 'bg-green-500' : booking.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'}`} />
 
-                                <div className="space-y-2 mb-4">
-                                    <div className="flex items-center text-sm text-gray-600">
-                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a1 1 0 01-1-1H4a1 1 0 01-1-1V8a1 1 0 011-1h4z" />
-                                        </svg>
-                                        {formatDate(booking.appointmentDate)}
+                                <div className="p-6">
+                                    {/* Header */}
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="w-10 h-10 bg-primary-cyan/10 rounded-full flex items-center justify-center">
+                                                    <User className="w-5 h-5 text-primary-cyan" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-gray-900">
+                                                        {booking.patient.username}
+                                                    </h3>
+                                                    <p className="text-xs text-gray-500">{booking.patient.email}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap ${getStatusBadgeColor(booking.status)}`}>
+                                            {booking.status === 'accepted' && <CheckCircle size={12} />}
+                                            {booking.status === 'declined' && <XCircle size={12} />}
+                                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                        </span>
                                     </div>
-                                    <div className="flex items-center text-sm text-gray-600">
-                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        {formatTimeForDisplay(booking.startTime)} - {formatTimeForDisplay(booking.endTime)}
-                                    </div>
-                                </div>
 
-                                <div className="flex justify-between items-center">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBookingTypeColor(booking.bookingType)}`}>
-                                        {booking.bookingType.charAt(0).toUpperCase() + booking.bookingType.slice(1)}
-                                    </span>
-                                    <button className="cursor-pointer text-vividblue text-sm font-medium hover:text-blue-700">
-                                        View Details →
-                                    </button>
+                                    {/* Appointment Details Card */}
+                                    <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-lg p-4 mb-4 border border-gray-100">
+                                        <div className="space-y-3">
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    <Calendar className="w-4 h-4 text-primary-cyan" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-gray-500 mb-0.5">Date</p>
+                                                    <p className="text-sm font-semibold text-gray-900">{formatDate(booking.appointmentDate)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    <Clock className="w-4 h-4 text-primary-cyan" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-gray-500 mb-0.5">Time</p>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {formatTimeForDisplay(booking.startTime)} - {formatTimeForDisplay(booking.endTime)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Reason */}
+                                    {booking.reason && (
+                                        <div className="mb-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                                            <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 bg-primary-cyan rounded-full"></span>
+                                                Reason
+                                            </p>
+                                            <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">{booking.reason}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Footer Actions */}
+                                    <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${getBookingTypeColor(booking.bookingType)}`}>
+                                            {booking.bookingType.charAt(0).toUpperCase() + booking.bookingType.slice(1)}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {/* Message Icon - Show for all bookings */}
+                                            <button
+                                                onClick={(e) => handleMessageClick(booking.patient._id, e)}
+                                                disabled={createConversationMutation.isPending}
+                                                className="p-2 text-primary-cyan hover:bg-primary-cyan/10 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+                                                title="Message patient"
+                                                aria-label="Message patient"
+                                            >
+                                                <MessageSquare size={18} />
+                                            </button>
+                                            <span className="text-xs text-gray-400 cursor-pointer hover:text-primary-cyan transition-colors">
+                                                View Details →
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}

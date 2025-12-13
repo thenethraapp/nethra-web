@@ -60,6 +60,7 @@ export async function getAllRecords(params?: {
   limit?: number;
   search?: string;
   status?: string;
+  patientId?: string; // For patient health records
 }) {
   try {
     const res = await apiClient.get<RecordListResponse>(
@@ -69,6 +70,32 @@ export async function getAllRecords(params?: {
 
     if (!res.data.success) {
       throw new RecordApiError("Failed to fetch records - invalid response");
+    }
+
+    return res.data;
+  } catch (e) {
+    handleRecordError(e);
+  }
+}
+
+// Get patient's health records (for patient dashboard)
+export async function getPatientHealthRecords(params?: {
+  page?: number;
+  limit?: number;
+}) {
+  try {
+    // The backend will automatically filter by current user's ID for patients
+    const res = await apiClient.get<RecordListResponse>(
+      "/api/record/get-all-records",
+      {
+        params: {
+          ...params
+        }
+      }
+    );
+
+    if (!res.data.success) {
+      throw new RecordApiError("Failed to fetch health records - invalid response");
     }
 
     return res.data;
@@ -161,5 +188,43 @@ export async function searchRecords(searchTerm: string) {
     return res.data.data;
   } catch (e) {
     handleRecordError(e);
+  }
+}
+
+export interface PatientSearchResult {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  username: string;
+}
+
+export interface PatientSearchResponse {
+  success: boolean;
+  data: PatientSearchResult[];
+  message: string;
+}
+
+export async function searchPatients(query: string): Promise<PatientSearchResult[]> {
+  try {
+    if (!query || typeof query !== "string" || query.trim().length < 2) {
+      return [];
+    }
+
+    const res = await apiClient.get<PatientSearchResponse>(
+      "/api/record/search-patients",
+      {
+        params: { query: query.trim() },
+      }
+    );
+
+    if (!res.data.success) {
+      throw new RecordApiError("Failed to search patients - invalid response");
+    }
+
+    return res.data.data || [];
+  } catch (e) {
+    console.error("Error searching patients:", e);
+    return [];
   }
 }

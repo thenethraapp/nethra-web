@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getPatientBookings } from '@/api/booking/patient/get-patient-bookings';
-import { toast } from 'react-toastify';
-import { Calendar, Clock, MapPin, User, CheckCircle, XCircle, Clock as ClockIcon } from 'lucide-react';
+import { toast } from 'sonner';
+import { Calendar, Clock, MapPin, User, CheckCircle, XCircle, Clock as ClockIcon, MessageSquare, Plus } from 'lucide-react';
+import { useMessagesStore } from '@/store/useMessagesStore';
+import { useMutation } from '@tanstack/react-query';
+import { createConversation } from '@/api/messaging/conversations/createConversation';
+import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 
 interface Optometrist {
     _id: string;
@@ -33,6 +38,33 @@ const PatientBookings: React.FC = () => {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'declined' | 'completed'>('all');
+    const { show: showMessages } = useMessagesStore();
+    const { user } = useAuth();
+
+    // Mutation to create conversation and open messaging
+    const createConversationMutation = useMutation({
+        mutationFn: (optometristId: string) => createConversation({
+            otherUserId: optometristId,
+            otherUserType: 'optometrist',
+            metadata: {}
+        }),
+        onSuccess: (data) => {
+            showMessages(data.conversation.participants.find(p => p.userId !== user?.id)?.userId || '');
+            toast.success('Opening conversation...');
+        },
+        onError: (error: Error) => {
+            toast.error('Failed to open conversation');
+            console.error('Error creating conversation:', error);
+        }
+    });
+
+    const handleMessageClick = async (optometristId: string) => {
+        try {
+            await createConversationMutation.mutateAsync(optometristId);
+        } catch (error) {
+            // Error handled in mutation
+        }
+    };
 
     useEffect(() => {
         fetchBookings();
@@ -113,8 +145,8 @@ const PatientBookings: React.FC = () => {
         return bookings.filter(b => b.status === filterKey).length;
     };
 
-    const filteredBookings = filter === 'all' 
-        ? bookings 
+    const filteredBookings = filter === 'all'
+        ? bookings
         : bookings.filter(booking => booking.status === filter);
 
     if (loading) {
@@ -149,8 +181,8 @@ const PatientBookings: React.FC = () => {
                                     key={key}
                                     onClick={() => setFilter(key as typeof filter)}
                                     className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${filter === key
-                                            ? 'border-blue-500 text-vividblue'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-500 text-vividblue'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {label} ({getFilterCount(key)})
@@ -162,69 +194,141 @@ const PatientBookings: React.FC = () => {
 
                 {/* Bookings Grid */}
                 {filteredBookings.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-                        <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Appointments Found</h3>
-                        <p className="text-gray-600">
-                            {filter === 'all' 
-                                ? "You haven't booked any appointments yet."
-                                : `You don't have any ${filter} appointments.`
-                            }
-                        </p>
-                    </div>
+                    filter === 'all' ? (
+                        // Standby Widget - No appointments at all
+                        <div className="rounded-xl p-8 text-center">
+                            <div className="max-w-md mx-auto">
+                                <div className="w-20 h-20 bg-primary-cyan/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Calendar className="w-10 h-10 text-primary-cyan" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-3">No Appointments Yet</h3>
+                                <p className="text-gray-600 mb-6">
+                                    Ready to book an appointment? Browse our network of qualified optometrists near you and schedule your eye care visit.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                    <Link
+                                        href="/booking"
+                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-cyan text-white rounded-lg font-medium hover:bg-primary-cyan/90 transition-colors shadow-md hover:shadow-lg"
+                                    >
+                                        <Plus size={20} />
+                                        Book Appointment
+                                    </Link>
+                                    <Link
+                                        href="/feed"
+                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-primary-cyan border-2 border-primary-cyan rounded-lg font-medium hover:bg-primary-cyan/5 transition-colors"
+                                    >
+                                        <User size={20} />
+                                        Find Optometrist
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        // Filtered empty state
+                        <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+                            <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No {filter.charAt(0).toUpperCase() + filter.slice(1)} Appointments</h3>
+                            <p className="text-gray-600">
+                                You {"don't"} have any {filter} appointments.
+                            </p>
+                        </div>
+                    )
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredBookings.map((booking) => (
                             <div
                                 key={booking._id}
-                                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                                className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden group"
                             >
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 mb-1">
-                                            Dr. {booking.optometrist.fullName}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">{booking.optometrist.email}</p>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusBadgeColor(booking.status)}`}>
-                                        {getStatusIcon(booking.status)}
-                                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                                    </span>
-                                </div>
+                                {/* Status Header Bar */}
+                                <div className={`h-1 ${booking.status === 'accepted' ? 'bg-green-500' : booking.status === 'pending' ? 'bg-yellow-500' : booking.status === 'declined' ? 'bg-red-500' : 'bg-blue-500'}`} />
 
-                                <div className="space-y-2 mb-4">
-                                    <div className="flex items-center text-sm text-gray-600">
-                                        <Calendar className="w-4 h-4 mr-2" />
-                                        {formatDate(booking.appointmentDate)}
+                                <div className="p-6">
+                                    {/* Header */}
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex-1">
+                                            <h3 className="text-lg font-bold text-gray-900 mb-1">
+                                                Dr. {booking.optometrist.fullName}
+                                            </h3>
+                                            <p className="text-sm text-gray-500">{booking.optometrist.email}</p>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap ${getStatusBadgeColor(booking.status)}`}>
+                                            {getStatusIcon(booking.status)}
+                                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                        </span>
                                     </div>
-                                    <div className="flex items-center text-sm text-gray-600">
-                                        <Clock className="w-4 h-4 mr-2" />
-                                        {formatTimeForDisplay(booking.startTime)} - {formatTimeForDisplay(booking.endTime)}
-                                    </div>
-                                    <div className="flex items-center text-sm text-gray-600">
-                                        {booking.bookingType === 'virtual' ? (
-                                            <MapPin className="w-4 h-4 mr-2" />
-                                        ) : (
-                                            <MapPin className="w-4 h-4 mr-2" />
-                                        )}
-                                        {booking.bookingType === 'virtual' ? 'Virtual Consultation' : 'In-Person Visit'}
-                                    </div>
-                                </div>
 
-                                {booking.reason && (
-                                    <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                                        <p className="text-xs font-medium text-gray-700 mb-1">Reason:</p>
-                                        <p className="text-sm text-gray-600">{booking.reason}</p>
+                                    {/* Appointment Details Card */}
+                                    <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-lg p-4 mb-4 border border-gray-100">
+                                        <div className="space-y-3">
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    <Calendar className="w-4 h-4 text-primary-cyan" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-gray-500 mb-0.5">Date</p>
+                                                    <p className="text-sm font-semibold text-gray-900">{formatDate(booking.appointmentDate)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    <Clock className="w-4 h-4 text-primary-cyan" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-gray-500 mb-0.5">Time</p>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {formatTimeForDisplay(booking.startTime)} - {formatTimeForDisplay(booking.endTime)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    <MapPin className="w-4 h-4 text-primary-cyan" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-medium text-gray-500 mb-0.5">Type</p>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {booking.bookingType === 'virtual' ? 'Virtual Consultation' : 'In-Person Visit'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
 
-                                <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBookingTypeColor(booking.bookingType)}`}>
-                                        {booking.bookingType.charAt(0).toUpperCase() + booking.bookingType.slice(1)}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                        {new Date(booking.createdAt).toLocaleDateString()}
-                                    </span>
+                                    {/* Reason */}
+                                    {booking.reason && (
+                                        <div className="mb-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                                            <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 bg-primary-cyan rounded-full"></span>
+                                                Reason for Visit
+                                            </p>
+                                            <p className="text-sm text-gray-700 leading-relaxed">{booking.reason}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Footer Actions */}
+                                    <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${getBookingTypeColor(booking.bookingType)}`}>
+                                            {booking.bookingType.charAt(0).toUpperCase() + booking.bookingType.slice(1)}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {/* Message Icon - Only show for accepted bookings */}
+                                            {booking.status === 'accepted' && (
+                                                <button
+                                                    onClick={() => handleMessageClick(booking.optometrist._id)}
+                                                    disabled={createConversationMutation.isPending}
+                                                    className="p-2 text-primary-cyan hover:bg-primary-cyan/10 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+                                                    title="Message doctor"
+                                                    aria-label="Message doctor"
+                                                >
+                                                    <MessageSquare size={18} />
+                                                </button>
+                                            )}
+                                            <span className="text-xs text-gray-400">
+                                                {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
